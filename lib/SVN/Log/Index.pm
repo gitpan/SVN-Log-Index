@@ -1,6 +1,6 @@
 package SVN::Log::Index;
 
-# $Id: Index.pm 127 2004-05-28 00:38:48Z rooneg $
+# $Id: Index.pm 130 2004-05-29 22:56:28Z rooneg $
 
 use strict;
 
@@ -11,7 +11,7 @@ use Plucene::Analysis::SimpleAnalyzer;
 use Plucene::Search::IndexSearcher;
 use Plucene::QueryParser;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 

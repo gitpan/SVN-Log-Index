@@ -1,3 +1,7 @@
+[ Changes for 0.22 - May 29, 2004 ]
+
+* Fix the 'sli' script so that it can actually create a new index.
+
 [ Changes for 0.21 - May 27, 2004 ]
 
 * Fix the log parsing code, it was refering to a nonexistant variable.
