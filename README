@@ -1,0 +1,49 @@
+NAME
+    SVN::Log::Index - Index and search over Subversion commit logs.
+
+SYNOPSIS
+      my $index = SVN::Log::Index->new ('/path/to/index');
+
+      $index->add ('svn://host/repos', 1);
+
+      my $results = $index->search ('query');
+
+DESCRIPTION
+    SVN::Log::Index builds a Plucene index of commit logs from any number of
+    Subversion repositories and allows you to do arbitrary full text
+    searches over them.
+
+METHODS
+  new
+      my $index = SVN::Log::Index->new ('/path/to/index', create => $create);
+
+    Create a new index or an object to manage an existing index.
+
+    The first argument is the path to the index on disk, and all remaining
+    arguments are used to create an args hash.
+
+    If the args hash's 'create' entry is true a new index will be created,
+    otherwise an existing index will be opened.
+
+  add
+      $index->add ('svn://host/path/to/repos', $start_rev, $end_rev);
+
+    Add one or more log messages to the index. If a second revision is not
+    specified, the revision passed will be added to the index, otherwise the
+    range of revisions from $start_rev to $end_rev will be added.
+
+  search
+      my $hits = $index->search ($query);
+
+    Search for $query (which is parsed into a Plucene::Search::Query object
+    by the Lucene::QueryParser module) in $index and return a reference to
+    an array of hash references. Each hash reference points to a hash where
+    the key is the field name and the value is the field value for all the
+    fields associated with the hit.
+
+AUTHOR
+    Garrett Rooney, <rooneg@electricjellyfish.net>
+
+LICENSE
+    This software is licensed under the same terms as Perl itself.
+

@@ -1,0 +1,12 @@
+bin/sli
+Build.PL
+lib/SVN/Log/Index.pm
+Makefile.PL
+MANIFEST
+MANIFEST.SKIP
+META.yml
+README
+t/01use.t
+t/02basics.t
+t/03bugs.t
+TODO

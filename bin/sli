@@ -1,0 +1,60 @@
+#!/usr/bin/perl
+
+# $Id: sli 50 2004-02-03 01:45:18Z rooneg $
+
+use strict;
+use warnings;
+
+use SVN::Log::Index;
+
+use Getopt::Long;
+
+my %options;
+
+$options{indexpath} = "$ENV{HOME}/.sli/index";
+
+GetOptions (\%options,
+            'repos=s',
+            'revision=s',
+            'indexpath=s',
+            'create',
+            'query=s',
+            'verbose',
+           ) or usage ();
+
+my $index = SVN::Log::Index->new ($options{indexpath}, $options{create});
+
+if (defined $options{revision} && defined $options{repos}) {
+  my ($startrev, $endrev) = $options{revision} =~ m/^(\d+):(\d+)$/;
+
+  $startrev = $options{revision} unless defined $startrev;
+
+  $index->add ($options{repos}, $startrev, $endrev);
+} elsif (defined $options{query}) {
+  my $results = $index->search ($options{query});
+
+  for my $result (@$results) {
+    printf "%s\n", "-----" x 15 if $options{verbose};
+
+    printf "r%d | %-8s | %s | %s\n",
+      $result->{revision}, $result->{author}, $result->{date}, $result->{url};
+
+    printf "%s\n", "-----" x 15 if $options{verbose};
+
+    my $msg = $result->{message}; $msg =~ s/^\n*//; $msg =~ s/\n*$//;
+
+    printf "\n%s\n\n", $msg if $options{verbose};
+  }
+} else {
+  usage ();
+}
+
+exit 0;
+
+sub usage {
+  print <<EOF;
+usage: sli [--repos <repository>] [--revision <rev>] [--query <query>]
+           [--indexpath <index>] [--create] [--verbose]
+EOF
+  exit 1;
+}
