@@ -1,4 +1,4 @@
-# $Id: 02basics.t 61 2004-02-10 00:11:04Z rooneg $
+# $Id: 02basics.t 126 2004-05-28 00:35:56Z rooneg $
 
 use Test::More tests => 13;
 use strict;
@@ -76,3 +76,5 @@ ok ($index->add ($repospath, 2), "added revision with absolute path to repos");
 
   ok (! -e $indexpath2, 'shouldn\'t create a new index if create is false');
 }
+
+chmod 0600, File::Spec->catfile ($repospath, "format");

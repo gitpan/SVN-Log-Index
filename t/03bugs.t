@@ -1,4 +1,4 @@
-# $Id: 03bugs.t 61 2004-02-10 00:11:04Z rooneg $
+# $Id: 03bugs.t 126 2004-05-28 00:35:56Z rooneg $
 
 use Test::More tests => 2;
 use strict;
@@ -24,3 +24,5 @@ my $index = SVN::Log::Index->new ($indexpath, create => 1);
 ok ($index->add ("file://$repospath", 1), "added revision with empty log");
 
 ok ($index->add ("file://$repospath", 2), "added revision with whitespace log");
+
+chmod 0600, File::Spec->catfile ($repospath, "format");

@@ -1,6 +1,6 @@
 package SVN::Log::Index;
 
-# $Id: Index.pm 99 2004-03-24 00:45:58Z rooneg $
+# $Id: Index.pm 127 2004-05-28 00:38:48Z rooneg $
 
 use strict;
 
@@ -11,7 +11,7 @@ use Plucene::Analysis::SimpleAnalyzer;
 use Plucene::Search::IndexSearcher;
 use Plucene::QueryParser;
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 =head1 NAME
 
@@ -185,7 +185,7 @@ sub _do_log_commandline {
           $state = 'message';
         } else {
           if (m/^\s+\w+ (.+)$/) {
-            $paths->{$2} = 1; # we only care about the filename anyway...
+            $paths->{$1} = 1; # we only care about the filename anyway...
           }
         }
       }
