@@ -1,3 +1,14 @@
+[ Changes for 0.30 - Jun 11, 2004 ]
+
+* Changed verbose output of sli program to look more like 'svn log' output.
+* Moved log retrieval code into SVN::Log module, distributed separately, 
+  because it turns out that people want to use it.  In the process fixed a 
+  bug in the command line client parsing code that caused us to miss revs.
+* Add a mechanism for forcing use of the svn command line client, even if 
+  the subversion perl bindings are installed.
+* Add tests that exercise the code that uses the svn command line client 
+  to read logs from the repository.
+
 [ Changes for 0.22 - May 29, 2004 ]
 
 * Fix the 'sli' script so that it can actually create a new index.

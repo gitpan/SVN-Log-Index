@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id: Build.PL 98 2004-03-01 00:33:24Z rooneg $
+# $Id: Build.PL 153 2004-06-11 20:11:20Z rooneg $
 
 use strict;
 use warnings;
@@ -22,23 +22,6 @@ sub have_exe {
   }
 
   return $found_exe;
-}
-
-eval {
-  require SVN::Core;
-  require SVN::Ra;
-};
-
-if ($@) {
-  unless (have_exe ('svn')) {
-    print <<EOM;
-SVN::Log::Index requires either the SVN perl bindings or the 'svn' executable 
-to function.
-
-You can obtain both at http://subversion.tigris.org/.
-EOM
-    exit 1;
-  }
 }
 
 unless (have_exe ('svnadmin')) {
@@ -66,6 +49,7 @@ Module::Build->new (
 
   requires => {
     'Plucene' => 1.0,
+    'SVN::Log' => 0,
   },
 
   recommends => {

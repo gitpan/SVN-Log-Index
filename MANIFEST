@@ -10,4 +10,5 @@ README
 t/01use.t
 t/02basics.t
 t/03bugs.t
+t/04commandline.t
 TODO

@@ -1,4 +1,4 @@
-# $Id: TODO 94 2004-02-29 22:58:30Z rooneg $
+# $Id: TODO 139 2004-05-31 20:16:48Z rooneg $
 
 * a 'sync' command that goes out and gets all the revs for a repos you don't 
   have in your index yet.  this means keeping track of what revs we have and 
@@ -11,8 +11,7 @@
   means storing the uuid rather than the url and searching for uuid/rev combos 
   before adding to the index.  need to see how to make that fast...
 
-* add tests that force use of the command line code even if SVN bindings are 
-  installed.
-
 * have tests verify that the svn and svnadmin binaries are installed before 
   trying to use them.
+
+* sli should take symbolic revision specifications in addition to numeric ones
