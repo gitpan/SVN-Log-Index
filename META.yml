@@ -1,16 +1,16 @@
 --- #YAML:1.0
 name: SVN-Log-Index
-version: 0.1
+version: 0.20
 license: perl
 distribution_type: module
 requires:
-  PLucene: 1
+  Plucene: 1
+recommends:
   SVN::Core: 0
-recommends: {}
 build_requires: {}
 conflicts: {}
 provides:
   SVN::Log::Index:
     file: lib/SVN/Log/Index.pm
-    version: 0.1
+    version: 0.20
 generated_by: Module::Build version 0.21

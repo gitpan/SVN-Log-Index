@@ -1,5 +1,6 @@
 bin/sli
 Build.PL
+CHANGES
 lib/SVN/Log/Index.pm
 Makefile.PL
 MANIFEST

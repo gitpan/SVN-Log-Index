@@ -1,6 +1,6 @@
 package SVN::Log::Index;
 
-# $Id: Index.pm 62 2004-02-10 00:19:41Z rooneg $
+# $Id: Index.pm 99 2004-03-24 00:45:58Z rooneg $
 
 use strict;
 
@@ -11,7 +11,7 @@ use Plucene::Analysis::SimpleAnalyzer;
 use Plucene::Search::IndexSearcher;
 use Plucene::QueryParser;
 
-our $VERSION = '0.1';
+our $VERSION = '0.20';
 
 =head1 NAME
 
@@ -120,14 +120,79 @@ sub add {
   # against different versions of the APR libraries than subversion is.
   #
   # not that i happen to have a system like that or anything...
-  require SVN::Core;
-  require SVN::Ra;
+  eval {
+    require SVN::Core;
+    require SVN::Ra;
+  };
+
+  if ($@) {
+    # oops, we don't have the SVN perl libs installed, so instead we need
+    # to fall back to using the command line client the old fashioned way
+    *_do_log = *_do_log_commandline;
+  } else {
+    *_do_log = *_do_log_bindings;
+  }
 
   # alias add to _add, so we only do the require the first time through.
   *add = *_add;
 
   # let's try this again...
   add (@_);
+}
+
+sub _do_log_bindings {
+  my ($self, $repos, $start_rev, $end_rev) = @_;
+
+  my $r = SVN::Ra->new (url => $repos) or die "error opening RA layer: $!";
+
+  $r->get_log ([''], $start_rev, $end_rev, 1, 0,
+               sub { $self->_handle_log (@_); });
+}
+
+sub _do_log_commandline {
+  my ($self, $repos, $start_rev, $end_rev) = @_;
+
+  open my $log, "svn log -v -r $start_rev:$end_rev $repos|"
+    or die "couldn't open pipe to svn process: $!";
+
+  my ($paths, $rev, $author, $date, $msg);
+
+  my $state = 'start';
+
+  my $seprule  = qr/^-{72}$/;
+  my $headrule = qr/r(\d+) \| (\w+) \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/;
+
+  # XXX i'm sure this can be made much much cleaner...
+  while (<$log>) {
+    if ($state eq 'start' or $state eq 'message' and m/$seprule/) {
+      if ($state eq 'start') {
+        $state = 'head';
+      } elsif ($state eq 'message') {
+        $state = 'start';
+        $self->_handle_log($paths, $rev, $author, $date, $msg);
+      }
+    } elsif ($state eq 'head' and m/$headrule/) {
+      $rev = $1;
+      $author = $2;
+      $date = $3;
+      $paths = {};
+      $msg = "";
+
+      $state = 'paths';
+    } elsif ($state eq 'paths') {
+      unless (m/^Changed paths:$/) {
+        if (m/^$/) {
+          $state = 'message';
+        } else {
+          if (m/^\s+\w+ (.+)$/) {
+            $paths->{$2} = 1; # we only care about the filename anyway...
+          }
+        }
+      }
+    } elsif ($state eq 'message') {
+      $msg .= $_;
+    }
+  }
 }
 
 sub _add {
@@ -145,10 +210,7 @@ sub _add {
     $repos = "file://$repos";
   }
 
-  my $r = SVN::Ra->new (url => $repos) or die "error opening RA layer: $!";
-
-  $r->get_log ([''], $start_rev, $end_rev, 1, 0,
-               sub { $self->_handle_log (@_); });
+  $self->_do_log ($repos, $start_rev, $end_rev);
 
   undef $self->{writer};
   undef $self->{url};
@@ -161,7 +223,7 @@ sub _add {
   my $hits = $index->search ($query);
 
 Search for $query (which is parsed into a Plucene::Search::Query object by 
-the Lucene::QueryParser module) in $index and return a reference to an array 
+the Plucene::QueryParser module) in $index and return a reference to an array 
 of hash references.  Each hash reference points to a hash where the key is 
 the field name and the value is the field value for all the fields associated 
 with the hit.

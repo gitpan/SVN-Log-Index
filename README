@@ -36,7 +36,7 @@ METHODS
       my $hits = $index->search ($query);
 
     Search for $query (which is parsed into a Plucene::Search::Query object
-    by the Lucene::QueryParser module) in $index and return a reference to
+    by the Plucene::QueryParser module) in $index and return a reference to
     an array of hash references. Each hash reference points to a hash where
     the key is the field name and the value is the field value for all the
     fields associated with the hit.
