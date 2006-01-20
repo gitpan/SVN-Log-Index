@@ -1,4 +1,25 @@
-[ Changes for 0.30 - Jun 11, 2004 ]
+[ Changes for 0.40 - Jan 20, 2006 ]
+
+-- Changes by Nik Clayton
+
+* Significant changes to the API.  It's not backwards compatible, but is
+  now cleaner.
+* One index now contains information about one repo.  It's now not possible
+  to have one index contain information from multiple repos.
+* Significant enhancements to the documentation.
+* Require SVN::Log 0.03.  This gives us support for 'HEAD' in a revision
+  specification.
+* Indexing 'remembers' the last indexed revision.  The API exposes this,
+  and bin/sli now supports 'LAST' in a revision specification.
+* Significant changes to the bin/sli usage model.  It's now cleaner, but
+  is not backwards compatible.
+
+-- Changes by Garrett Rooney
+
+* Accept an alternate Analyzer in constructor [Mike Henson <mike at axl.net>].
+* Return the relevance in the result hash [Mike Henson <mike at axl.net>].
+
+[ Changes for 0.30 - Jun 14, 2004 ]
 
 * Changed verbose output of sli program to look more like 'svn log' output.
 * Moved log retrieval code into SVN::Log module, distributed separately, 

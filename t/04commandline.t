@@ -1,6 +1,6 @@
-# $Id: 04commandline.t 159 2004-06-11 23:58:12Z rooneg $
+# $Id: 04commandline.t 726 2006-01-11 08:19:33Z nik $
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 use strict;
 
 use File::Spec::Functions qw(catdir rel2abs);
@@ -33,17 +33,22 @@ SKIP: {
     system ("svn mkdir -q file://$repospath/branches -m 'bar'");
   }
 
-  my $index = SVN::Log::Index->new ($indexpath, create => 1);
+  my $index = SVN::Log::Index->new({ index_path => $indexpath });
+  $index->create({ repo_url  => $repospath,
+		   overwrite => 1 });
+  $index->open();
 
-  ok ($index->add ("file://$repospath", 1), "added first revision");
+  ok ($index->add({ start_rev => 1 }), "added first revision");
 
-  ok ($index->add ("file://$repospath", 2), "added second revision");
+  ok ($index->add({ start_rev => 2 }), "added second revision");
 
-  my $hits = $index->search ('foo');
+  my $hits = $index->search('foo');
 
   ok (@$hits == 1, "able to retrieve first revision");
 
   like ($hits->[0]->{message}, qr/foo/, 'really matches query');
+
+  ok ($hits->[0]->{relevance} > 0.1, 'has a plausible relevance');
 
   $hits = $index->search ('bar');
 

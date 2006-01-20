@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id: Build.PL 153 2004-06-11 20:11:20Z rooneg $
+# $Id: Build.PL 743 2006-01-20 15:23:09Z nik $
 
 use strict;
 use warnings;
@@ -43,13 +43,16 @@ Module::Build->new (
 
   create_readme => 1,
 
+  sign => 1,
+
   script_files => [
     'bin/sli',
   ],
 
   requires => {
     'Plucene' => 1.0,
-    'SVN::Log' => 0,
+    'SVN::Log' => 0.03,
+    'YAML' => 0,
   },
 
   recommends => {

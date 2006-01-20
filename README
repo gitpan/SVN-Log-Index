@@ -2,35 +2,173 @@ NAME
     SVN::Log::Index - Index and search over Subversion commit logs.
 
 SYNOPSIS
-      my $index = SVN::Log::Index->new ('/path/to/index');
+      my $index = SVN::Log::Index->new({ index_path => '/path/to/index' });
 
-      $index->add ('svn://host/repos', 1);
+      if($creating) {    # Create from scratch if necessary
+        $index->create({ repo_url => 'url://for/repo' });
+      }
 
-      my $results = $index->search ('query');
+      $index->open();    # And then open it
+
+      # Now add revisions from the repo to the index
+      $index->add({ start_rev => $start_rev,
+                    end_rev   => $end_rev);
+
+      # And query the index
+      my $results = $index->search('query');
 
 DESCRIPTION
-    SVN::Log::Index builds a Plucene index of commit logs from any number of
-    Subversion repositories and allows you to do arbitrary full text
-    searches over them.
+    SVN::Log::Index builds a Plucene index of commit logs from a Subversion
+    repository and allows you to do arbitrary full text searches over it.
 
 METHODS
   new
-      my $index = SVN::Log::Index->new ('/path/to/index', create => $create);
+      # Creating a new index object
+      my $index = SVN::Log::Index->new({index_path => '/path/to/index'});
 
-    Create a new index or an object to manage an existing index.
+    Create a new index object.
 
-    The first argument is the path to the index on disk, and all remaining
-    arguments are used to create an args hash.
+    The single argument is a hash ref. Currently only one key is valid.
 
-    If the args hash's 'create' entry is true a new index will be created,
-    otherwise an existing index will be opened.
+    index_path
+        The path that contains (or will contain) the index files.
+
+    This method prepares the object for use, but does not make any changes
+    on disk.
+
+  create
+      $index->create({ repo_url       => 'url://for/repo',
+                       analyzer_class => 'Plucene::Analysis::Analyzer::Sub',
+                       optimize_every => $num,
+                       overwrite      => 1, # or 0
+                   });
+
+    This method creates a new index, in the "index_path" given when the
+    object was created.
+
+    The single argument is a hash ref, with the following possible keys.
+
+    repo_url
+        The URL for the Subversion repository that is going to be indexed.
+
+    analyzer_class
+        A string giving the name of the class that will analyse log message
+        text and tokenise it. This should derive from the
+        Plucene::Analysis::Analyzer class. SVN::Log::Index will call this
+        class' "new()" method.
+
+        Once an analyzer class has been chosen for an index it can not be
+        changed without deleting the index and creating it afresh.
+
+        The default value is "Plucene::Analysis::SimpleAnalyzer".
+
+    optimize_every
+        Per the documentation for Plucene::Index::Writer, the index should
+        be optimized to improve search performance.
+
+        This is normally done after an application has finished adding
+        documents to the index. However, if your application will be using
+        the index while it's being updated you may wish the optimisation to
+        be carried out periodically while the repository is still being
+        indexed.
+
+        If defined, the index will be optimized after every "optimize_every"
+        revisions have been added to the index. The index is also optimized
+        after the final revision has been added.
+
+        So if "optimize_every" is given as 100, and you have requested that
+        revisions 134 through 568 be indexed then the index will be
+        optimized after adding revision 200, 300, 400, 500, and 568.
+
+        The default value is 0, indicating that optimization should only be
+        carried out after the final revision has been added.
+
+    overwrite
+        A boolean indicating whether or not a pre-existing index_path should
+        be overwritten.
+
+        Given this sequence;
+
+          my $index = SVN::Log::Index->new({index_path => '/path'});
+          $index->create({repo_url => 'url://for/repo'});
+
+        The call to "create()" will fail if "/path" already exists.
+
+        If "overwrite" is set to a true value then "/path" will be cleared.
+
+    After creation the index directory will exist on disk, and a
+    configuration file containing the create()-time parameters will be
+    created in the index directory.
+
+    Newly created indexes must still be opened.
+
+  open
+      $index->open();
+
+    Opens the index, in preparation for adding or removing entries.
 
   add
-      $index->add ('svn://host/path/to/repos', $start_rev, $end_rev);
+      $index->add ({ start_rev      => $start_rev,  # number, or 'HEAD'
+                     end_rev        => $end_rev,    # number, or 'HEAD'
+                     optimize_every => $num });
 
-    Add one or more log messages to the index. If a second revision is not
-    specified, the revision passed will be added to the index, otherwise the
-    range of revisions from $start_rev to $end_rev will be added.
+    Add one or more log messages to the index.
+
+    The single argument is a hash ref, with the following possible keys.
+
+    start_rev
+        The first revision to add to the index. May be given as "HEAD" to
+        mean the repository's most recent (youngest) revision.
+
+        This key is mandatory.
+
+    end_rev
+        The last revision to add to the index. May be given as "HEAD" to
+        mean the repository's most recent (youngest) revision.
+
+        This key is optional. If not included then only the revision
+        specified by "start_rev" will be indexed.
+
+    optimize_every
+        Overrides the "optimize_every" value that was given in the
+        "create()" call that created this index.
+
+        This key is optional. If it is not included then the value used in
+        the "create()" call is used. If it is included, and the value is
+        "undef" then optimization will be disabled while these revisions are
+        included.
+
+        The index will still be optimized after the revisions have been
+        added.
+
+    Revisions from "start_rev" to "end_rev" are added inclusive. "start_rev"
+    and "end_rev" may be given in ascending or descending order. Either:
+
+      $index->add({ start_rev => 1, end_rev => 10 });
+
+    or
+
+      $index->add({ start_rev => 10, end_rev => 1 });
+
+    In both cases, revisons are indexed in ascending order, so revision 1,
+    followed by revision 2, and so on, up to revision 10.
+
+  get_last_indexed_rev
+      my $rev = $index->get_last_indexed_rev();
+
+    Returns the revision number that was most recently added to the index.
+
+    Most useful in repeated calls to "add()".
+
+      # Loop forever.  Every five minutes wake up, and add all newly
+      # committed revisions to the index.
+      while(1) {
+        sleep 300;
+        $index->add({ start_rev => $index->get_last_indexed_rev() + 1,
+                      end_rev   => 'HEAD' });
+      }
+
+    The last indexed revision number is saved as a property of the index.
 
   search
       my $hits = $index->search ($query);
@@ -41,9 +179,95 @@ METHODS
     the key is the field name and the value is the field value for all the
     fields associated with the hit.
 
-AUTHOR
-    Garrett Rooney, <rooneg@electricjellyfish.net>
+QUERY SYNTAX
+    This module supports the Lucene query syntax, described in detail at
+    <http://lucene.apache.org/java/docs/queryparsersyntax.html>. A brief
+    overview follows.
 
-LICENSE
+    *   A query consists of one or more terms, joined with boolean
+        operators.
+
+    *   A term is either a single word, or two or more words, enclosed in
+        double quotes. So
+
+          foo bar baz
+
+        is a different query from
+
+          "foo bar" baz
+
+        The first searches for any of "foo", "bar", or "baz", the second
+        searches for any of "foo bar", or "baz".
+
+    *   By default, multiple terms in a query are OR'd together. You may
+        also use "AND", or "NOT" between terms.
+
+          foo AND bar
+          foo NOT bar
+
+        Use "+" before a term to indicate that it must appear, and "-"
+        before a term to indicate that it must not appear.
+
+          foo +bar
+          -foo bar
+
+    *   Use parantheses to control the ordering.
+
+          (foo OR bar) AND baz
+
+    *   Searches are conducted in *fields*. The default field to search is
+        the log message. Other fields are indicated by placing the field
+        name before the term, separating them both with a ":".
+
+        Available fields are:
+
+        revision
+        author
+        date
+        paths
+
+        For example, to find all commit messages where "nik" was the
+        committer, that contained the string "foo bar":
+
+          author:nik AND "foo bar"
+
+SEE ALSO
+    SVN::Log
+
+BUGS
+    Please report any bugs or feature requests to
+    "bug-svn-log-index@rt.cpan.org", or through the web interface at
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVN-Log-Index>. I will
+    be notified, and then you'll automatically be notified of progress on
+    your bug as I make changes.
+
+    I'm aware of one bug in Plucene that affects SVN::Log::Index. If you see
+    output like this when running the tests:
+
+      Argument "trunk" isn't numeric in bitwise xor (^) at 
+        /usr/local/lib/perl5/site_perl/5.8.7/Plucene/Index/TermInfosWriter.pm 
+        line 134.
+
+    then your Plucene installation suffers from it. The problem is described
+    in http://rt.cpan.org//Ticket/Display.html?id=17185, and can be fixed by
+    replacing line 134, which looks like this:
+
+      ($text ^ $self->{last_term}->text) =~ /^(\0*)/;
+
+    with these two lines:
+
+      my $last_term_text = $self->{last_term}->text;
+      ("$text" ^ "$last_term_text") =~ /^(\0*)/;
+
+AUTHOR
+    The current maintainer is Nik Clayton, <nikc@cpan.org>.
+
+    The original author was Garrett Rooney, <rooneg@electricjellyfish.net>
+
+COPYRIGHT AND LICENSE
+    Copyright 2006 Nik Clayton. All Rights Reserved.
+
+    Copyright 2004 Garrett Rooney. All Rights Reserved.
+
     This software is licensed under the same terms as Perl itself.
 

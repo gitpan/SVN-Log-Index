@@ -1,4 +1,4 @@
-# $Id: TODO 139 2004-05-31 20:16:48Z rooneg $
+# $Id: TODO 704 2004-09-30 21:31:02Z rooneg $
 
 * a 'sync' command that goes out and gets all the revs for a repos you don't 
   have in your index yet.  this means keeping track of what revs we have and 
@@ -15,3 +15,12 @@
   trying to use them.
 
 * sli should take symbolic revision specifications in addition to numeric ones
+
+* Devel::Cover says we need tests for:
+  * empty svn:author
+  * user defined Analyzer
+  * various combinations of ranges for add
+  * passing in a Plucene::Search::Query to search
+  * undef field in results
+
+* Look into AlphaNumericIndexer, should fix ability to search on revs...

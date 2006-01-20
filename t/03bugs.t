@@ -1,4 +1,4 @@
-# $Id: 03bugs.t 126 2004-05-28 00:35:56Z rooneg $
+# $Id: 03bugs.t 726 2006-01-11 08:19:33Z nik $
 
 use Test::More tests => 2;
 use strict;
@@ -19,10 +19,13 @@ my $indexpath = rel2abs (catdir ($tmpdir, 'index'));
   system ("svn mkdir -q file://$repospath/branches -m ' \t \n'");
 }
 
-my $index = SVN::Log::Index->new ($indexpath, create => 1);
+my $index = SVN::Log::Index->new ({ index_path => $indexpath});
+$index->create({ repo_url => "file://$repospath",
+	         overwrite => 1, });
+$index->open();
 
-ok ($index->add ("file://$repospath", 1), "added revision with empty log");
+ok ($index->add({ start_rev => 1 }), "added revision with empty log");
 
-ok ($index->add ("file://$repospath", 2), "added revision with whitespace log");
+ok ($index->add({ start_rev => 2 }), "added revision with whitespace log");
 
 chmod 0600, File::Spec->catfile ($repospath, "format");
