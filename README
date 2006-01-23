@@ -176,8 +176,19 @@ METHODS
     Search for $query (which is parsed into a Plucene::Search::Query object
     by the Plucene::QueryParser module) in $index and return a reference to
     an array of hash references. Each hash reference points to a hash where
-    the key is the field name and the value is the field value for all the
-    fields associated with the hit.
+    the key is the field name and the value is the field value for this hit.
+
+    The keys are:
+
+    relevance
+        How relevant Plucene thought this result was, as a floating point
+        number.
+
+    url The URL of the repository that the index is for.
+
+    revision, message, author, paths, date
+        The revision number, log message, commit author, paths changed in
+        the commit, and date of the commit, respectively.
 
 QUERY SYNTAX
     This module supports the Lucene query syntax, described in detail at
@@ -240,24 +251,6 @@ BUGS
     <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVN-Log-Index>. I will
     be notified, and then you'll automatically be notified of progress on
     your bug as I make changes.
-
-    I'm aware of one bug in Plucene that affects SVN::Log::Index. If you see
-    output like this when running the tests:
-
-      Argument "trunk" isn't numeric in bitwise xor (^) at 
-        /usr/local/lib/perl5/site_perl/5.8.7/Plucene/Index/TermInfosWriter.pm 
-        line 134.
-
-    then your Plucene installation suffers from it. The problem is described
-    in http://rt.cpan.org//Ticket/Display.html?id=17185, and can be fixed by
-    replacing line 134, which looks like this:
-
-      ($text ^ $self->{last_term}->text) =~ /^(\0*)/;
-
-    with these two lines:
-
-      my $last_term_text = $self->{last_term}->text;
-      ("$text" ^ "$last_term_text") =~ /^(\0*)/;
 
 AUTHOR
     The current maintainer is Nik Clayton, <nikc@cpan.org>.

@@ -14,7 +14,7 @@ use SVN::Log;
 use Carp;
 use YAML ();
 
-our $VERSION = '0.40';
+our $VERSION = '0.41';
 
 =head1 NAME
 
@@ -351,7 +351,7 @@ sub _handle_log {
 
   my $doc = Plucene::Document->new ();
 
-  $doc->add (Plucene::Document::Field->Keyword ("revision", $rev));
+  $doc->add (Plucene::Document::Field->Keyword ("revision", "$rev"));
 
   # it's certainly possible to get a undefined author, you just need either
   # mod_dav_svn with no auth, or svnserve with anonymous write access turned
@@ -422,8 +422,26 @@ sub get_last_indexed_rev {
 Search for $query (which is parsed into a Plucene::Search::Query object by
 the Plucene::QueryParser module) in $index and return a reference to an array
 of hash references.  Each hash reference points to a hash where the key is
-the field name and the value is the field value for all the fields associated
-with the hit.
+the field name and the value is the field value for this hit.
+
+The keys are:
+
+=over
+
+=item relevance
+
+How relevant Plucene thought this result was, as a floating point number.
+
+=item url
+
+The URL of the repository that the index is for.
+
+=item revision, message, author, paths, date
+
+The revision number, log message, commit author, paths changed in the commit,
+and date of the commit, respectively.
+
+=back
 
 =cut
 
@@ -449,13 +467,20 @@ sub search {
 
   my $reader = $searcher->reader;
 
+  # $self isn't usable in the HitCollector collect sub, so the repo url
+  # isn't available.  Copy it in to a separate variable so that it's in
+  # scope for the HitCollector sub.
+
+  my $repo_url = $self->{config}{repo_url};
+
   my $hc = Plucene::Search::HitCollector->new (collect =>
     sub {
       my ($self, $docid, $score) = @_;
 
       my $doc = $reader->document ($docid);
 
-      my %result = ( relevance => $score );
+      my %result = (relevance => $score,
+                    url       => $repo_url);
 
       for my $key qw(revision message author paths date) {
         my $field = $doc->get ($key);
@@ -556,24 +581,6 @@ C<bug-svn-log-index@rt.cpan.org>, or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SVN-Log-Index>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
-
-I'm aware of one bug in Plucene that affects SVN::Log::Index.  If you see
-output like this when running the tests:
-
-  Argument "trunk" isn't numeric in bitwise xor (^) at 
-    /usr/local/lib/perl5/site_perl/5.8.7/Plucene/Index/TermInfosWriter.pm 
-    line 134.
-
-then your Plucene installation suffers from it.  The problem is
-described in http://rt.cpan.org//Ticket/Display.html?id=17185, and can
-be fixed by replacing line 134, which looks like this:
-
-  ($text ^ $self->{last_term}->text) =~ /^(\0*)/;
-
-with these two lines:
-
-  my $last_term_text = $self->{last_term}->text;
-  ("$text" ^ "$last_term_text") =~ /^(\0*)/;
 
 =head1 AUTHOR
 

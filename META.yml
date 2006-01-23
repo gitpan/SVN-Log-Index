@@ -1,6 +1,6 @@
 ---
 name: SVN-Log-Index
-version: 0.40
+version: 0.41
 author:
   - 'The current maintainer is Nik Clayton, <nikc@cpan.org>.'
   - 'The original author was Garrett Rooney, <rooneg@electricjellyfish.net>'
@@ -15,5 +15,5 @@ recommends:
 provides:
   SVN::Log::Index:
     file: lib/SVN/Log/Index.pm
-    version: 0.40
+    version: 0.41
 generated_by: Module::Build version 0.2611

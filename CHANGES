@@ -1,3 +1,10 @@
+[ Changes for 0.41 - Jan 23, 2006 ]
+
+* Work around a Plucene bug by stringifying the revision number before
+  indexing it.
+* Fix a bug, include the repository URL in the results returned by search().
+* Better documentation about the results returned by search().
+
 [ Changes for 0.40 - Jan 20, 2006 ]
 
 -- Changes by Nik Clayton
