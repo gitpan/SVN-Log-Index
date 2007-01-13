@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.50.
+signed via the Module::Signature module, version 0.55.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -14,25 +14,25 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 46d73d4ad6f817e6727799269d7d0dcc7d492460 Build.PL
-SHA1 a712bf007ef7adb99cbfbe02e74f24cca5f895da CHANGES
+SHA1 7a7de0df1147ee9800e3d2bafd7d374190c7c29e Build.PL
+SHA1 8ae0b2fbac7643f2b7f085dbd0a8de85e52f9682 CHANGES
 SHA1 c04b86be088c2463aee0f8141daf29ec1692b4be MANIFEST
 SHA1 c479cde9319fc1be034d46c435f74bcd8ae84fa9 MANIFEST.SKIP
-SHA1 2e43033ed46949f64e5f76f50f7363121861f91c META.yml
-SHA1 a359d4072690a21ce63e4b393bdbc19d72b6be5a Makefile.PL
-SHA1 13ab30e9b63a54d327272c7237aa50c8054e091a README
-SHA1 a5b2cce8e9312c401c7167bd5703a88fca8150ea TODO
-SHA1 334dd73635652fe092e243171e5f60b1f52d5544 bin/sli
-SHA1 e108f92953eb42a8e0022bd390789299d6540182 lib/SVN/Log/Index.pm
-SHA1 e368d0e318c93b5b8241aef906664880d435c56c t/01use.t
-SHA1 11e18abcf5a5568347af1c4aae5f6924c624bb0c t/02basics.t
-SHA1 3f90f3a563e07e0533f883a022e9a86820fa3ccd t/03bugs.t
-SHA1 6530f2e9873500e2a212aeb3336b433b2f533d67 t/04commandline.t
-SHA1 9cf44fb5b78433575bae850ad706ed392bf4368d t/05errors.t
+SHA1 7f0819e8531141aed22ce83843815e8a350333c4 META.yml
+SHA1 cd14ada78fb37a0d926edd86eddcdf7f939de582 Makefile.PL
+SHA1 50c0e812872bbe61a2bf971f4774c83f6afbcd58 README
+SHA1 0d984e073d9404913c5e4095f9972d55b00598e9 TODO
+SHA1 aa5608a3cb03f06884dd28f65ac787314c2cbf2f bin/sli
+SHA1 2fb1c58cf9c46caa11cd198ecb79278431569efb lib/SVN/Log/Index.pm
+SHA1 c5c422fce809b6c29031f04011c8946eb8344dba t/01use.t
+SHA1 652dc7de4a0df11a3a3b2a6897d39bfcd274c879 t/02basics.t
+SHA1 db8cd70458a21efbb44f46867dc52e6c8410a126 t/03bugs.t
+SHA1 c12c8a8530c5faaa38f97af4c0084c2b3cccafbf t/04commandline.t
+SHA1 13b4705746e306cdd79a4e29ad78476f3eaea2cf t/05errors.t
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.2 (FreeBSD)
+Version: GnuPG v1.4.5 (FreeBSD)
 
-iD8DBQFD1Jq5k6gHZCw343URAsWxAJ9tMbLBklZpUWwX92DRjPpD1b6FqgCgh2CS
-jJhKWcoNEdUA8fRoqadciKQ=
-=jynd
+iD8DBQFFqUv6k6gHZCw343URAoFUAJkBIG1TrscOcPTjFff0uetXPALregCfQdvi
+oHz2zGtM6RDlkjDfLDSnUDc=
+=tRvM
 -----END PGP SIGNATURE-----

@@ -3,18 +3,27 @@ package SVN::Log::Index;
 use strict;
 use warnings;
 
-use Plucene::Document;
-use Plucene::Document::Field;
-use Plucene::Index::Writer;
-use Plucene::Analysis::SimpleAnalyzer;
-use Plucene::Search::IndexSearcher;
-use Plucene::QueryParser;
+use File::Path;
+
+use KinoSearch::InvIndexer;
+use KinoSearch::Searcher;
+
+use Params::Validate qw(:all);
+use Exception::Class(
+    'SVN::Log::Index::X::Args'
+	=> { alias => 'throw_args', },
+    'SVN::Log::Index::X::Fault'
+	=> { alias  => 'throw_fault', },
+);
+
+Params::Validate::validation_options(
+    on_fail => sub { throw_args error => shift },
+);
 
 use SVN::Log;
-use Carp;
 use YAML ();
 
-our $VERSION = '0.41';
+our $VERSION = '0.5';
 
 =head1 NAME
 
@@ -39,7 +48,7 @@ SVN::Log::Index - Index and search over Subversion commit logs.
 
 =head1 DESCRIPTION
 
-SVN::Log::Index builds a Plucene index of commit logs from a
+SVN::Log::Index builds a KinoSearch index of commit logs from a
 Subversion repository and allows you to do arbitrary full text searches
 over it.
 
@@ -47,8 +56,9 @@ over it.
 
 =head2 new
 
-  # Creating a new index object
-  my $index = SVN::Log::Index->new({index_path => '/path/to/index'});
+  my $index = SVN::Log::Index->new({
+      index_path => '/path/to/index'
+  });
 
 Create a new index object.
 
@@ -69,7 +79,9 @@ on disk.
 
 sub new {
   my $proto = shift;
-  my $args  = shift;
+  my $args  = validate(@_, {
+      index_path => 1,
+  });
 
   my $class = ref($proto) || $proto;
   my $self  = {};
@@ -81,11 +93,12 @@ sub new {
 
 =head2 create
 
-  $index->create({ repo_url       => 'url://for/repo',
-                   analyzer_class => 'Plucene::Analysis::Analyzer::Sub',
-                   optimize_every => $num,
-                   overwrite      => 1, # or 0
-               });
+  $index->create({
+      repo_url       => 'url://for/repo',
+      analyzer_class => 'KinoSearch::Analysis::PolyAnalyzer',
+      analyzer_opts  => [ language => 'en' ],
+      overwrite      => 0, # Optional
+  });
 
 This method creates a new index, in the C<index_path> given when the
 object was created.
@@ -102,34 +115,18 @@ The URL for the Subversion repository that is going to be indexed.
 
 A string giving the name of the class that will analyse log message
 text and tokenise it.  This should derive from the
-L<Plucene::Analysis::Analyzer> class.  SVN::Log::Index will call this
+L<KinoSearch::Analysis::Analyzer> class.  SVN::Log::Index will call this
 class' C<new()> method.
 
 Once an analyzer class has been chosen for an index it can not be
 changed without deleting the index and creating it afresh.
 
-The default value is C<Plucene::Analysis::SimpleAnalyzer>.
+The default value is C<KinoSearch::Analysis::PolyAnalyzer>.
 
-=item optimize_every
+=item analyzer_opts
 
-Per the documentation for L<Plucene::Index::Writer>, the index should
-be optimized to improve search performance.
-
-This is normally done after an application has finished adding documents
-to the index.  However, if your application will be using the index while
-it's being updated you may wish the optimisation to be carried out
-periodically while the repository is still being indexed.
-
-If defined, the index will be optimized after every C<optimize_every>
-revisions have been added to the index.  The index is also optimized
-after the final revision has been added.
-
-So if C<optimize_every> is given as C<100>, and you have requested
-that revisions 134 through 568 be indexed then the index will be
-optimized after adding revision 200, 300, 400, 500, and 568.
-
-The default value is 0, indicating that optimization should only be
-carried out after the final revision has been added.
+A list of options to be passed, as is, to the constructor for the
+C<analyzer_class> object.
 
 =item overwrite
 
@@ -145,6 +142,8 @@ The call to C<create()> will fail if C</path> already exists.
 
 If C<overwrite> is set to a true value then C</path> will be cleared.
 
+The default is false.
+
 =back
 
 After creation the index directory will exist on disk, and a
@@ -155,37 +154,43 @@ Newly created indexes must still be opened.
 
 =cut
 
-my %default_opts = (analyzer_class => 'Plucene::Analysis::SimpleAnalyzer',
-		    optimize_every => 0,
-		    overwrite => 0,
-		    );
-
 sub create {
   my $self = shift;
-  my $args = shift;
+  my $args = validate(@_, {
+      repo_url => {
+	  type => SCALAR,
+	  regex => qr{^[a-z/]},
+      },
+      analyzer_class => {
+	  type => SCALAR,
+	  default => 'KinoSearch::Analysis::PolyAnalyzer',
+      },
+      analyzer_opts => {
+	  type => ARRAYREF,
+	  default => [ language => 'en' ],
+      },
+      overwrite => {
+	  type => BOOLEAN,
+	  default => 0,
+      },
+  });
 
- croak "Can't call create() after open()" if exists $self->{config};
+  throw_fault("Can't call create() after open()")
+      if exists $self->{config};
 
-  my %opts = (%default_opts, %$args);
-
-  if(-d $self->{index_path} and ! $opts{overwrite}) {
-    croak "create() $self->{index_path} exists and 'overwrite' is false";
+  if(-d $self->{index_path} and ! $args->{overwrite}) {
+    throw_fault("create() $self->{index_path} exists and 'overwrite' is false");
   }
 
-  croak "create() called with missing repo_url" if ! exists $opts{repo_url};
-  croak "create() called with undef repo_url" if ! defined $opts{repo_url};
-  croak "create() called with empty repo_url" if $opts{repo_url} =~ /^\s*$/;
-  croak "create() called with undefined optimize_every" if ! defined $opts{optimize_every};
-
-  if($opts{repo_url} !~ m/^(http|https|svn|file|svn\+ssh):\/\//) {
-    $opts{repo_url} = 'file://' . $opts{repo_url};
+  if($args->{repo_url} !~ m/^(http|https|svn|file|svn\+ssh):\/\//) {
+    $args->{repo_url} = 'file://' . $args->{repo_url};
   }
 
-  $self->{config} = \%opts;
+  $self->{config} = $args;
   $self->{config}{last_indexed_rev} = 0;
 
   $self->_create_analyzer();
-  $self->_create_writer($opts{overwrite});
+  $self->_create_writer($args->{overwrite});
 
   $self->_save_config();
 
@@ -196,14 +201,14 @@ sub _save_config {
   my $self = shift;
 
   YAML::DumpFile($self->{index_path} . '/config.yaml', $self->{config})
-      or croak "Saving config failed: $!";
+      or throw_fault("Saving config failed: $!");
 }
 
 sub _load_config {
   my $self = shift;
 
   $self->{config} = YAML::LoadFile($self->{index_path} . '/config.yaml')
-    or croak "Could not load state from $self->{index_path}/config.yaml: $!";
+    or throw_fault("Could not load state from $self->{index_path}/config.yaml: $!");
 }
 
 sub _create_writer {
@@ -212,13 +217,30 @@ sub _create_writer {
 
   return if exists $self->{writer} and defined $self->{analyzer};
 
-  croak "_create_analyzer() must be called first" if ! exists $self->{analyzer};
-  croak "analyzer is empty" if ! defined $self->{analyzer};
+  throw_fault("_create_analyzer() must be called first")
+      if ! exists $self->{analyzer};
+  throw_fault("analyzer is empty") if ! defined $self->{analyzer};
 
-  $self->{writer} = Plucene::Index::Writer->new($self->{index_path},
-						$self->{analyzer},
-						$create)
-    or croak "error creating ::Writer object: $!";
+  $self->{writer} = KinoSearch::InvIndexer->new(
+      invindex => $self->{index_path},
+      create   => $create,
+      analyzer => $self->{analyzer},
+  ) or throw_fault("error creating writer: $!");
+
+  foreach my $field (qw(paths revision author date message)) {
+      $self->{writer}->spec_field(name => $field);
+  }
+
+  return;
+}
+
+sub _delete_writer {
+    my $self = shift;
+    my $optimize = shift;
+
+    $self->{writer}->finish(optimize => $optimize);
+    delete $self->{writer};
+    return;
 }
 
 sub _create_analyzer {
@@ -226,8 +248,12 @@ sub _create_analyzer {
 
   return if exists $self->{analyzer} and defined $self->{analyzer};
 
-  $self->{analyzer} = $self->{config}{analyzer_class}->new()
-    or croak "error creating $self->{config}{analyzer_class} object: $!";
+  eval "require $self->{config}{analyzer_class}"
+      or throw_fault "require($self->{config}{analyzer_class} failed: $!";
+
+  $self->{analyzer} = $self->{config}{analyzer_class}->new(
+      @{ $self->{config}{analyzer_opts} }
+  ) or throw_fault("error creating $self->{config}{analyzer_class} object: $!");
 }
 
 =head2 open
@@ -242,8 +268,10 @@ sub open {
   my $self = shift;
   my $args = shift;
 
-  croak "$self->{index_path} does not exist" if ! -d $self->{index_path};
-  croak "$self->{index_path}/config.yaml does not exist" if ! -f "$self->{index_path}/config.yaml";
+  throw_fault("$self->{index_path} does not exist")
+      if ! -d $self->{index_path};
+  throw_fault("$self->{index_path}/config.yaml does not exist")
+      if ! -f "$self->{index_path}/config.yaml";
 
   $self->_load_config();
   $self->_create_analyzer();
@@ -251,9 +279,10 @@ sub open {
 
 =head2 add
 
-  $index->add ({ start_rev      => $start_rev,  # number, or 'HEAD'
-                 end_rev        => $end_rev,    # number, or 'HEAD'
-                 optimize_every => $num });
+  $index->add ({
+      start_rev      => $start_rev,  # number, or 'HEAD'
+      end_rev        => $end_rev,    # number, or 'HEAD'
+  });
 
 Add one or more log messages to the index.
 
@@ -276,17 +305,6 @@ the repository's most recent (youngest) revision.
 This key is optional.  If not included then only the revision specified
 by C<start_rev> will be indexed.
 
-=item optimize_every
-
-Overrides the C<optimize_every> value that was given in the C<create()>
-call that created this index.
-
-This key is optional.  If it is not included then the value used in the
-C<create()> call is used.  If it is included, and the value is C<undef>
-then optimization will be disabled while these revisions are included.
-
-The index will still be optimized after the revisions have been added.
-
 =back
 
 Revisions from C<start_rev> to C<end_rev> are added inclusive.
@@ -306,16 +324,20 @@ followed by revision 2, and so on, up to revision 10.
 
 sub add {
   my $self = shift;
-  my $args = shift;
-
-  croak "open() must be called first" unless exists $self->{config};
-  croak "add() missing start_rev parameter" unless exists $args->{start_rev};
-  croak "add() start_rev parameter is undef" unless defined $args->{start_rev};
+  my $args = validate(@_, {
+      start_rev => {
+	  type => SCALAR
+      },
+      end_rev => {
+	  type => SCALAR,
+	  optional => 1
+      },
+  });
 
   $args->{end_rev} = $args->{start_rev} unless defined $args->{end_rev};
 
   foreach (qw(start_rev end_rev)) {
-    croak "$_ value '$args->{$_}' is invalid"
+    throw_args("$_ value '$args->{$_}' is invalid")
       if $args->{$_} !~ /^(?:\d+|HEAD)$/;
   }
 
@@ -329,19 +351,15 @@ sub add {
 
   $self->_create_writer(0);
 
-  my $optimize = $self->{config}{optimize_every};
-  $optimize = $args->{optimize_every}
-    if exists $args->{optimize_every} and defined $args->{optimize_every};
-
   SVN::Log::retrieve ({ repository => $self->{config}{repo_url},
                         start      => $args->{start_rev},
                         end        => $args->{end_rev},
-                        callback   => sub { $self->_handle_log({ rev => \@_,
-								 optimize_every => $optimize }); } });
+                        callback   => sub { $self->_handle_log({ rev => \@_ }) }
+		    });
 
-  $self->{writer}->optimize();
+  $self->_delete_writer(1);
 
-  delete $self->{writer};
+  return 1;
 }
 
 sub _handle_log {
@@ -349,40 +367,32 @@ sub _handle_log {
 
   my ($paths, $rev, $author, $date, $msg) = @{$args->{rev}};
 
-  my $doc = Plucene::Document->new ();
+  my $doc = $self->{writer}->new_doc();
 
-  $doc->add (Plucene::Document::Field->Keyword ("revision", "$rev"));
+  $doc->set_value(revision => $rev);
 
   # it's certainly possible to get a undefined author, you just need either
   # mod_dav_svn with no auth, or svnserve with anonymous write access turned
   # on.
-  $doc->add (Plucene::Document::Field->Text ("author", $author))
-    if defined $author;
+  $doc->set_value(author => $author) if defined $author;
 
   # XXX might want to convert the date to something more easily searchable,
   # but for now let's settle for just not tokenizing it.
-  $doc->add (Plucene::Document::Field->Keyword("date", $date));
+  $doc->set_value(date => $date);
 
-  $doc->add (Plucene::Document::Field->Text("paths", join '\n',
-					    keys %$paths))
+  $doc->set_value(paths => join(' ', keys %$paths))
     if defined $paths; # i'm still not entirely clear how this can happen...
 
-  $doc->add (Plucene::Document::Field->Text("message", $msg))
+  $doc->set_value(message => $msg)
     unless $msg =~ m/^\s*$/;
 
-  $self->{writer}->add_document($doc);
+  $self->{writer}->add_doc($doc);
 
   $self->{config}{last_indexed_rev} = $rev;
 
   $self->_save_config();
 
-  if($args->{optimize_every}){
-    if($self->{config}{last_indexed_rev} % $args->{optimize_every} == 0) {
-      $self->{writer}->optimize();
-      delete $self->{writer};
-      $self->_create_writer(0);
-    }
-  }
+  return;
 }
 
 =head2 get_last_indexed_rev
@@ -408,93 +418,34 @@ The last indexed revision number is saved as a property of the index.
 sub get_last_indexed_rev {
   my $self = shift;
 
-  croak "Can't call get_last_indexed_rev() before open()"
+  throw_fault("Can't call get_last_indexed_rev() before open()")
     unless exists $self->{config};
-  croak "Empty configuration" unless defined $self->{config};
+  throw_fault("Empty configuration") unless defined $self->{config};
 
   return $self->{config}{last_indexed_rev};
 }
 
 =head2 search
 
-  my $hits = $index->search ($query);
+  my $hits = $index->search($query);
 
-Search for $query (which is parsed into a Plucene::Search::Query object by
-the Plucene::QueryParser module) in $index and return a reference to an array
-of hash references.  Each hash reference points to a hash where the key is
-the field name and the value is the field value for this hit.
-
-The keys are:
-
-=over
-
-=item relevance
-
-How relevant Plucene thought this result was, as a floating point number.
-
-=item url
-
-The URL of the repository that the index is for.
-
-=item revision, message, author, paths, date
-
-The revision number, log message, commit author, paths changed in the commit,
-and date of the commit, respectively.
-
-=back
+Search for $query and returns a KinoSearch::Search::Hits object which
+contains the result.
 
 =cut
 
 sub search {
-  my ($self, $query, %args) = @_;
+  my ($self, $query) = @_;
 
-  croak "open() must be called first" unless exists $self->{config};
+  throw_fault("open() must be called first")
+      unless exists $self->{config};
 
-  my $plucene_query;
-
-  if (ref $query and $query->isa ('Plucene::Search::Query')) {
-    $plucene_query = $query;
-  } else {
-    my $qp = Plucene::QueryParser->new ({ analyzer => $self->{analyzer},
-                                          default => 'message' });
-
-    $plucene_query = $qp->parse ($query);
-  }
-
-  my $searcher = Plucene::Search::IndexSearcher->new ($self->{index_path});
-
-  my @results;
-
-  my $reader = $searcher->reader;
-
-  # $self isn't usable in the HitCollector collect sub, so the repo url
-  # isn't available.  Copy it in to a separate variable so that it's in
-  # scope for the HitCollector sub.
-
-  my $repo_url = $self->{config}{repo_url};
-
-  my $hc = Plucene::Search::HitCollector->new (collect =>
-    sub {
-      my ($self, $docid, $score) = @_;
-
-      my $doc = $reader->document ($docid);
-
-      my %result = (relevance => $score,
-                    url       => $repo_url);
-
-      for my $key qw(revision message author paths date) {
-        my $field = $doc->get ($key);
-
-        $result{$key} = $field->string if defined $field;
-      }
-
-      push @results, \%result;
-    }
+  my $searcher = KinoSearch::Searcher->new(
+      invindex => $self->{index_path},
+      analyzer => $self->{analyzer},
   );
 
-  $searcher->search_hc ($plucene_query, $hc);
-
-  return \@results;
+  return $searcher->search(query => $query);
 }
 
 =head1 QUERY SYNTAX
@@ -570,9 +521,40 @@ that contained the string "foo bar":
 
 =back
 
+=head1 DIAGNOSTICS
+
+Any of these methods may fail.  If they do, they throw an
+L<Exception::Class> subclass representing the error, trappable with
+C<eval>.  Uncaught exceptions will cause the client application to
+C<die>.
+
+=head2 SVN::Log::Index::X::Args
+
+Represents an error that occurs if the parameters given to any of the
+methods are wrong.  This might be because there are too few or too many
+parameters, or that the types of those parameters are wrong.
+
+The text of the error can be retrieved with the C<error()> method.
+
+=head2 SVN::Log::Index::X::Fault
+
+Represents any other error.
+
+=head2 Example
+
+  my $e;
+  eval { $index->search('query string'); };
+
+  if($e = SVN::Log::Index::X::Fault->caught()) {
+      print "An error occured: ", $e->string(), "\n";
+  } elsif ($e = Exception::Class->caught()) {
+      # Something else failed, rethrow the error
+      ref $e ? $e->rethrow() : die $e;
+  }
+
 =head1 SEE ALSO
 
-L<SVN::Log>
+L<SVN::Log>, L<KinoSearch>
 
 =head1 BUGS
 
@@ -590,7 +572,7 @@ The original author was Garrett Rooney, <rooneg@electricjellyfish.net>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2006 Nik Clayton.  All Rights Reserved.
+Copyright 2006-2007 Nik Clayton.  All Rights Reserved.
 
 Copyright 2004 Garrett Rooney.  All Rights Reserved.
 

@@ -1,6 +1,6 @@
-# $Id: 04commandline.t 726 2006-01-11 08:19:33Z nik $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/t/04commandline.t 1474 2007-01-13T21:14:25.326886Z nik  $
 
-use Test::More tests => 7;
+use Test::More tests => 6;
 use strict;
 
 use File::Spec::Functions qw(catdir rel2abs);
@@ -43,18 +43,14 @@ SKIP: {
   ok ($index->add({ start_rev => 2 }), "added second revision");
 
   my $hits = $index->search('foo');
-
-  ok (@$hits == 1, "able to retrieve first revision");
-
-  like ($hits->[0]->{message}, qr/foo/, 'really matches query');
-
-  ok ($hits->[0]->{relevance} > 0.1, 'has a plausible relevance');
+  is($hits->total_hits(), 1, "able to retrieve first revision");
+  my $hah = $hits->fetch_hit_hashref();
+  like ($hah->{message}, qr/foo/, 'really matches query');
 
   $hits = $index->search ('bar');
-
-  ok (@$hits == 1, "able to retrieve second revision");
-
-  like ($hits->[0]->{message}, qr/bar/, 'really matches query');
+  is($hits->total_hits(), 1, "able to retrieve second revision");
+  $hah = $hits->fetch_hit_hashref();
+  like($hah->{message}, qr/bar/, 'really matches query');
 
   chmod 0600, File::Spec->catfile ($repospath, "format");
 };

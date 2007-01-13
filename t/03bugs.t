@@ -1,4 +1,4 @@
-# $Id: 03bugs.t 726 2006-01-11 08:19:33Z nik $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/t/03bugs.t 585 2006-01-11T08:19:33.308084Z nik  $
 
 use Test::More tests => 2;
 use strict;

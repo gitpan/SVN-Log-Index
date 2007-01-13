@@ -1,3 +1,9 @@
+[ Changes for 0.50 - Jan 13, 2006 ]
+
+* Switch to KinoSearch instead of Plucene for indexing.  When indexing
+  large repositories with thousands of repositories Plucene ran in to
+  memory problems.  KinoSearch appears not to have this limitation.
+
 [ Changes for 0.41 - Jan 23, 2006 ]
 
 * Work around a Plucene bug by stringifying the revision number before

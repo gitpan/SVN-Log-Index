@@ -1,4 +1,4 @@
-# $Id: TODO 704 2004-09-30 21:31:02Z rooneg $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/TODO 563 2004-09-30T21:31:02.490154Z rooneg  $
 
 * a 'sync' command that goes out and gets all the revs for a repos you don't 
   have in your index yet.  this means keeping track of what revs we have and 

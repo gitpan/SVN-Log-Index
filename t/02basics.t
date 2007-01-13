@@ -1,14 +1,12 @@
-# $Id: 02basics.t 731 2006-01-11 08:20:33Z nik $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/t/02basics.t 1474 2007-01-13T21:14:25.326886Z nik  $
 
-use Test::More tests => 21;
+use Test::More tests => 18;
 use strict;
 
 use File::Spec::Functions qw(catdir rel2abs);
 use File::Temp qw(tempdir);
 
 use SVN::Log::Index;
-
-use Plucene::QueryParser;
 
 my $tmpdir = tempdir (CLEANUP => 1);
 
@@ -34,41 +32,32 @@ ok ($index->add({ start_rev => 1 }), "added revision via SVN::Ra");
 {
   my $hits = $index->search ('log');
 
-  ok (@$hits == 1, "able to retrieve first revision");
+  $hits->seek(0, 10);
+  is($hits->total_hits(), 1, "one hit");
 
-  like ($hits->[0]->{message}, qr/message/, 'really matches query');
+  my $hah = $hits->fetch_hit_hashref(); # hah = hits as hash
 
-  ok ($hits->[0]->{relevance} > 0.1, 'has a plausible relevance');
-
-  my $qp = Plucene::QueryParser->new (
-    { analyzer => Plucene::Analysis::SimpleAnalyzer->new (),
-      default => 'message' }
-  );
-
-  my $query = $qp->parse ('log');
-
-  $hits = $index->search ($query);
-
-  ok (@$hits == 1, 'able to pass a Plucene::Search::Query to search');
-
-  like ($hits->[0]->{message}, qr/log/, 'really matches query');
+  like($hah->{message}, qr/message/, 'really matches query');
 }
 
 ok ($index->add({ start_rev => 2 }), "added revision with absolute path to repos");
 
 {
   my $hits = $index->search ('another');
-
-  ok (@$hits == 1, "able to retrieve second revision");
-  like ($hits->[0]->{message}, qr/another/, 'really matches query');
+  $hits->seek(0, 10);
+  is($hits->total_hits(), 1, "able to retrieve second revision");
+  my $hah = $hits->fetch_hit_hashref();
+  like($hah->{message}, qr/another/, 'really matches query');
 }
 
 {
   my $hits = $index->search ('log');
-
-  ok (@$hits == 2, "able to retrieve both revisions");
-  like ($hits->[0]->{message}, qr/log/, 'really matches query');
-  like ($hits->[1]->{message}, qr/log/, 'really matches query');
+  $hits->seek(0, 10);
+  is($hits->total_hits(), 2, "able to retrieve both revisions");
+  my $hah = $hits->fetch_hit_hashref();
+  like($hah->{message}, qr/log/, 'really matches query');
+  $hah = $hits->fetch_hit_hashref();
+  like($hah->{message}, qr/log/, 'really matches query');
 }
 
 undef $index;
@@ -82,9 +71,9 @@ ok($index->add({ start_rev => $index->get_last_indexed_rev() + 1,
    'add() with get_last_indexed_rev / HEAD works');
 {
   my $hits = $index->search('log');
-  ok(@$hits == 3, 'able to retrieve 3 revisions');
-  foreach (0..2) {
-    like($hits->[$_]->{message}, qr/log/, "  Entry $_ matches");
+  is($hits->total_hits(), 3, 'able to retrieve 3 revisions');
+  while(my $hah = $hits->fetch_hit_hashref()) {
+    like($hah->{message}, qr/log/, "  Entry matches");
   }
 }
 

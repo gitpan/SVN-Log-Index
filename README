@@ -18,13 +18,15 @@ SYNOPSIS
       my $results = $index->search('query');
 
 DESCRIPTION
-    SVN::Log::Index builds a Plucene index of commit logs from a Subversion
-    repository and allows you to do arbitrary full text searches over it.
+    SVN::Log::Index builds a KinoSearch index of commit logs from a
+    Subversion repository and allows you to do arbitrary full text searches
+    over it.
 
 METHODS
   new
-      # Creating a new index object
-      my $index = SVN::Log::Index->new({index_path => '/path/to/index'});
+      my $index = SVN::Log::Index->new({
+          index_path => '/path/to/index'
+      });
 
     Create a new index object.
 
@@ -37,11 +39,12 @@ METHODS
     on disk.
 
   create
-      $index->create({ repo_url       => 'url://for/repo',
-                       analyzer_class => 'Plucene::Analysis::Analyzer::Sub',
-                       optimize_every => $num,
-                       overwrite      => 1, # or 0
-                   });
+      $index->create({
+          repo_url       => 'url://for/repo',
+          analyzer_class => 'KinoSearch::Analysis::PolyAnalyzer',
+          analyzer_opts  => [ language => 'en' ],
+          overwrite      => 0, # Optional
+      });
 
     This method creates a new index, in the "index_path" given when the
     object was created.
@@ -54,34 +57,17 @@ METHODS
     analyzer_class
         A string giving the name of the class that will analyse log message
         text and tokenise it. This should derive from the
-        Plucene::Analysis::Analyzer class. SVN::Log::Index will call this
+        KinoSearch::Analysis::Analyzer class. SVN::Log::Index will call this
         class' "new()" method.
 
         Once an analyzer class has been chosen for an index it can not be
         changed without deleting the index and creating it afresh.
 
-        The default value is "Plucene::Analysis::SimpleAnalyzer".
+        The default value is "KinoSearch::Analysis::PolyAnalyzer".
 
-    optimize_every
-        Per the documentation for Plucene::Index::Writer, the index should
-        be optimized to improve search performance.
-
-        This is normally done after an application has finished adding
-        documents to the index. However, if your application will be using
-        the index while it's being updated you may wish the optimisation to
-        be carried out periodically while the repository is still being
-        indexed.
-
-        If defined, the index will be optimized after every "optimize_every"
-        revisions have been added to the index. The index is also optimized
-        after the final revision has been added.
-
-        So if "optimize_every" is given as 100, and you have requested that
-        revisions 134 through 568 be indexed then the index will be
-        optimized after adding revision 200, 300, 400, 500, and 568.
-
-        The default value is 0, indicating that optimization should only be
-        carried out after the final revision has been added.
+    analyzer_opts
+        A list of options to be passed, as is, to the constructor for the
+        "analyzer_class" object.
 
     overwrite
         A boolean indicating whether or not a pre-existing index_path should
@@ -96,6 +82,8 @@ METHODS
 
         If "overwrite" is set to a true value then "/path" will be cleared.
 
+        The default is false.
+
     After creation the index directory will exist on disk, and a
     configuration file containing the create()-time parameters will be
     created in the index directory.
@@ -108,9 +96,10 @@ METHODS
     Opens the index, in preparation for adding or removing entries.
 
   add
-      $index->add ({ start_rev      => $start_rev,  # number, or 'HEAD'
-                     end_rev        => $end_rev,    # number, or 'HEAD'
-                     optimize_every => $num });
+      $index->add ({
+          start_rev      => $start_rev,  # number, or 'HEAD'
+          end_rev        => $end_rev,    # number, or 'HEAD'
+      });
 
     Add one or more log messages to the index.
 
@@ -128,18 +117,6 @@ METHODS
 
         This key is optional. If not included then only the revision
         specified by "start_rev" will be indexed.
-
-    optimize_every
-        Overrides the "optimize_every" value that was given in the
-        "create()" call that created this index.
-
-        This key is optional. If it is not included then the value used in
-        the "create()" call is used. If it is included, and the value is
-        "undef" then optimization will be disabled while these revisions are
-        included.
-
-        The index will still be optimized after the revisions have been
-        added.
 
     Revisions from "start_rev" to "end_rev" are added inclusive. "start_rev"
     and "end_rev" may be given in ascending or descending order. Either:
@@ -171,24 +148,10 @@ METHODS
     The last indexed revision number is saved as a property of the index.
 
   search
-      my $hits = $index->search ($query);
+      my $hits = $index->search($query);
 
-    Search for $query (which is parsed into a Plucene::Search::Query object
-    by the Plucene::QueryParser module) in $index and return a reference to
-    an array of hash references. Each hash reference points to a hash where
-    the key is the field name and the value is the field value for this hit.
-
-    The keys are:
-
-    relevance
-        How relevant Plucene thought this result was, as a floating point
-        number.
-
-    url The URL of the repository that the index is for.
-
-    revision, message, author, paths, date
-        The revision number, log message, commit author, paths changed in
-        the commit, and date of the commit, respectively.
+    Search for $query and returns a KinoSearch::Search::Hits object which
+    contains the result.
 
 QUERY SYNTAX
     This module supports the Lucene query syntax, described in detail at
@@ -242,8 +205,34 @@ QUERY SYNTAX
 
           author:nik AND "foo bar"
 
+DIAGNOSTICS
+    Any of these methods may fail. If they do, they throw an
+    Exception::Class subclass representing the error, trappable with "eval".
+    Uncaught exceptions will cause the client application to "die".
+
+  SVN::Log::Index::X::Args
+    Represents an error that occurs if the parameters given to any of the
+    methods are wrong. This might be because there are too few or too many
+    parameters, or that the types of those parameters are wrong.
+
+    The text of the error can be retrieved with the "error()" method.
+
+  SVN::Log::Index::X::Fault
+    Represents any other error.
+
+  Example
+      my $e;
+      eval { $index->search('query string'); };
+
+      if($e = SVN::Log::Index::X::Fault->caught()) {
+          print "An error occured: ", $e->string(), "\n";
+      } elsif ($e = Exception::Class->caught()) {
+          # Something else failed, rethrow the error
+          ref $e ? $e->rethrow() : die $e;
+      }
+
 SEE ALSO
-    SVN::Log
+    SVN::Log, KinoSearch
 
 BUGS
     Please report any bugs or feature requests to
@@ -258,7 +247,7 @@ AUTHOR
     The original author was Garrett Rooney, <rooneg@electricjellyfish.net>
 
 COPYRIGHT AND LICENSE
-    Copyright 2006 Nik Clayton. All Rights Reserved.
+    Copyright 2006-2007 Nik Clayton. All Rights Reserved.
 
     Copyright 2004 Garrett Rooney. All Rights Reserved.
 

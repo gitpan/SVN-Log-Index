@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- Mode: cperl-mode; cperl-indent-level: 4 -*-
 
-# $Id: sli 741 2006-01-20 14:57:25Z nik $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/bin/sli 1474 2007-01-13T21:14:25.326886Z nik  $
 
 use strict;
 use warnings;
@@ -179,21 +179,22 @@ sub do_search {
 
     $index->open();
 
-    my $results = $index->search($o->{query});
+    my $hits = $index->search($o->{query});
 
-    for my $result (@$results) {
+    my $total = $hits->total_hits();
+
+    while(my $result = $hits->fetch_hit_hashref()) {
 	printf "%s\n", "-----" x 15 if $o->{verbose};
 
-	printf "r%d | %-8s | %s | %s\n",
-	  $result->{revision}, $result->{author},
-	    $result->{date}, $result->{url};
+	printf "r%-8d | %-8s | %s\n",
+	    $result->{revision}, $result->{author}, $result->{date};
 
 	my $msg = $result->{message}; $msg =~ s/^\n*//; $msg =~ s/\n*$//;
 
 	printf "\n%s\n\n", $msg if $o->{verbose};
-	print "Relevance: $result->{relevance}\n" if $o->{verbose};
+	print "Relevance: $result->{score}\n" if $o->{verbose};
     }
-    printf "%s\n", "-----" x 15 if $o->{verbose} and @$results;
+    printf "%s\n", "-----" x 15 if $o->{verbose} and $total;
 }
 
 =head2 help
@@ -256,6 +257,10 @@ Show basic information about the revision.
 
   sli search --index /path/to/index --query "author:nik AND fixed"
 
+Repeat the previous query, but use C<+> to connect terms.
+
+  sli search --index /path/to/index --query "author:nik +fixed"
+
 Repeat the previous query, but include each revision's log message
 too.
 
@@ -264,7 +269,7 @@ too.
 
 =head1 SEE ALSO
 
-L<SVN::Log::Index>
+L<SVN::Log::Index>, L<KinoSearch::QueryParser::QueryParser>
 
 =head1 BUGS
 
@@ -282,7 +287,7 @@ The original author was Garrett Rooney, <rooneg@electricjellyfish.net>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2006 Nik Clayton.  All Rights Reserved.
+Copyright 2006-2007 Nik Clayton.  All Rights Reserved.
 
 Copyright 2004 Garrett Rooney.  All Rights Reserved.
 
