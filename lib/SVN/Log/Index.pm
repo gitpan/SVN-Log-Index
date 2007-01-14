@@ -23,7 +23,7 @@ Params::Validate::validation_options(
 use SVN::Log;
 use YAML ();
 
-our $VERSION = '0.5';
+our $VERSION = '0.51';
 
 =head1 NAME
 

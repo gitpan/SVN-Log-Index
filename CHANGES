@@ -1,3 +1,7 @@
+[ Changes for 0.51 - Jan 14, 2006 ]
+
+* List Params::Validate as a pre-requisite in the packaging metadata.
+
 [ Changes for 0.50 - Jan 13, 2006 ]
 
 * Switch to KinoSearch instead of Plucene for indexing.  When indexing

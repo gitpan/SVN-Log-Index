@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id: /local/CPAN/SVN-Log-Index/trunk/Build.PL 1474 2007-01-13T21:14:25.326886Z nik  $
+# $Id: /local/CPAN/SVN-Log-Index/trunk/Build.PL 1478 2007-01-14T12:29:49.681065Z nik  $
 
 use strict;
 use warnings;
@@ -54,6 +54,7 @@ Module::Build->new (
     'SVN::Log' => 0.03,
     'Exception::Class' => 0,
     'YAML' => 0,
+    'Params::Validate' => 0,
     'Test::Exception' => 0,
   },
 
